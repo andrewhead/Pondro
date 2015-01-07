@@ -129,7 +129,7 @@ void pickResponse() {
   } else {
     response = shortResponses[random(shortWrites)];    
   }
-  Serial.println(strlen(response));
+  // Serial.println(strlen(response));
 }
 
 void wait() {
@@ -179,6 +179,8 @@ void loop() {
   }
   else if (state == responding) {
     int responseIndex = responseTime / SAMPLE_DELAY;
+    // Serial.println(responseTime);
+    // Serial.print(responseIndex);
     char boopBefore = response[responseIndex];
     char boopAfter = response[responseIndex + 1];
     int boop = (boopBefore + ((responseTime % SAMPLE_DELAY) / (float) SAMPLE_DELAY) * (boopAfter - boopBefore));
