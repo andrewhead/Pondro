@@ -12,6 +12,7 @@
 const int soundPin = A0;  // sound detector 'envelope' pin
 const int buttonPin = 4;  // toggle switch
 const int buzzerPin = 2;  // piezo buzzer
+const int currentPin = 3;
 
 // EEPROM constants
 const int shortWriteAddr = 0;
@@ -29,8 +30,9 @@ enum convState {
 };
 
 // Logic constants
-const int TALK_AMP = 15;          // Minimum sample amplitude to be considered start of speech
-const int TALK_SAMPLES = 3;       // Minimum number of samples above threshold to be considered talking
+const int TALK_AMP = 20;          // Minimum sample amplitude to be considered start of speech
+const int INTERRUPT_AMP = 40;     // Sample amplitude to interrupt Pondro's speech
+const int TALK_SAMPLES = 4;       // Minimum number of samples above threshold to be considered talking
 const int SILENCE_SAMPLES = 20;   // Number of samples of silence after talking heard to be considered silence
 const int SHORT_RESPONSE_LEN = 20;
 const int LONG_RESPONSE_LEN = 100;
@@ -39,7 +41,7 @@ const int STORE_RATE = 4;         // 1 / (this number) = chance of storing term
 const int SHORT_RESPONSES = 25;
 const int LONG_RESPONSES = 5;
 const int SAMPLE_DELAY = 100;
-
+const int REPLAY_DELAY = 10;
 
 // Global variables
 int buttonState = 0;
@@ -81,7 +83,7 @@ void stopRecording() {
 }
 
 void storeRecording() {
-  Serial.println("Storing");
+  // Serial.println("Storing");
   if (strlen(recording) <= SHORT_RESPONSE_LEN) {
     for (int i = 0; i < SHORT_RESPONSE_LEN; i++) {
       shortResponses[shortWriteIndex][i] = recording[i]; 
@@ -127,6 +129,7 @@ void pickResponse() {
   } else {
     response = shortResponses[random(shortWrites)];    
   }
+  Serial.println(strlen(response));
 }
 
 void wait() {
@@ -150,7 +153,7 @@ void loop() {
   // Serial.println(amp);
   
   if (state == waiting) {
-     Serial.println("Waiting");
+     // Serial.println("Waiting");
      noTone(buzzerPin);
      if (amp >= TALK_AMP) {
         state = listening;
@@ -161,7 +164,7 @@ void loop() {
     delay(SAMPLE_DELAY);
   }
   else if (state == listening) {
-     Serial.println("Listening");
+     // Serial.println("Listening");
      recordSample();
      silences = (amp >= TALK_AMP) ? 0 : (silences + 1);
      talks = (amp >= TALK_AMP) ? (talks + 1) : talks;
@@ -175,25 +178,24 @@ void loop() {
     delay(SAMPLE_DELAY);
   }
   else if (state == responding) {
-    Serial.println("Responding");
     int responseIndex = responseTime / SAMPLE_DELAY;
     char boopBefore = response[responseIndex];
     char boopAfter = response[responseIndex + 1];
     int boop = (boopBefore + ((responseTime % SAMPLE_DELAY) / (float) SAMPLE_DELAY) * (boopAfter - boopBefore));
-    int freq = 400 + (boop / 256.0) * 3000;
+    int freq = 300 + (boop / 256.0) * 5000;
     // Stop response either if it's over or if Pondro has been interrupted
-    if (boopBefore == '\0' || responseIndex == LONG_RESPONSE_LEN - 2 || amp >= TALK_AMP) {
+    if (boopBefore == '\0' || responseIndex == LONG_RESPONSE_LEN - 2 || amp >= INTERRUPT_AMP) {
       state = waiting;
       responseTime = 0;
       resetRecording();
     }
-    if (boop > TALK_AMP) {
+    if (boop > 8) {
       tone(buzzerPin, freq);
     } else {
       noTone(buzzerPin); 
     }
-    responseTime += 10;
-    delay(10);
+    responseTime += REPLAY_DELAY;
+    delay(REPLAY_DELAY);
   }
 }
 
@@ -233,4 +235,5 @@ void setup() {
   loadState();
   resetRecording();
   state = waiting;
+  digitalWrite(currentPin, 1);
 }
